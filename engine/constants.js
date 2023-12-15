@@ -1,5 +1,2 @@
-const constants = {
-  MAX_ENTITIES: 512,
-};
-
-module.exports = constants;
+export const MAX_ENTITIES = 512;
+export const NEUTRAL_LAND_COST = 2;

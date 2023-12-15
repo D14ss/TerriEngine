@@ -67,6 +67,10 @@ class Pixel {
             }
         }
     }
+
+    canOwn(pIndex) {
+
+    }
 }
 
 module.exports = Pixel;

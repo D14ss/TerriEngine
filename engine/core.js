@@ -10,10 +10,9 @@ const Algo = require('./algo.js'),
     ProcessAction = require('./processAction.js'),
     Speed = require('./speed.js'),
     Time = require('./time.js'),
-    constants = require('./constants.js');
 
 const pixel = new Pixel(),
-    speed = new Speed({ constants, pixel, algo: null }),
+    speed = new Speed({ pixel, algo: null }),
     gameStatistics = new GameStatistics({ pixel, speed, time: null, interest: null }),
     interest = new Interest({ pixel, time: null, gameStatistics }),
     algo = new Algo({ speed, pixel, interest, gameStatistics }),

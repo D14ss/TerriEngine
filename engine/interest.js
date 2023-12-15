@@ -23,6 +23,8 @@ class Interest {
         const landIRate = Math.floor(100 * (13440 - 6 * this.deps.time.tick) / 1920);
         return landIRate < 0 ? 0 : landIRate > 700 ? 700 : landIRate;
     }
+
+    // limitTroops
 }
 
 module.exports = Interest;
