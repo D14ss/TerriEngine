@@ -11,7 +11,7 @@ const Algo = require('./algo.js'),
     Speed = require('./speed.js'),
     Time = require('./time.js'),
 
-const pixel = new Pixel(),
+const pixel = new Pixel({ algo: null, gameInit: null, mapUpdate: null}),
     speed = new Speed({ pixel, algo: null }),
     gameStatistics = new GameStatistics({ pixel, speed, time: null, interest: null }),
     interest = new Interest({ pixel, time: null, gameStatistics }),
@@ -19,6 +19,9 @@ const pixel = new Pixel(),
     processAction = new ProcessAction({ speed, time: null, interest, gameStatistics }),
     time = new Time({ interest, pixel, gameStatistics, processAction, speed });
 
+pixel.deps.algo = algo;
+pixel.deps.gameInit = gameInit;
+pixel.deps.mapUpdate = mapUpdate;
 speed.deps.algo = algo;
 gameStatistics.deps.time = time;
 gameStatistics.deps.interest = interest;
