@@ -119,8 +119,9 @@ class Algo {
     tryTakingMarkedPixels(id) {
         if (this.stillCanTakeMarkedPixels(id)) {
             this.takeBorderPixels(id);
-            // if (this.lastTargetID !== constants.MAX_ENTITIES) this.updateTargetPixelArrays();
-        }
+            if (this.lastTargetID !== constants.MAX_ENTITIES) this.updateTargetPixelArrays();
+        } else this.returnRemaining(id);
+        // working on this
     }
     // working on this
     function tryTakingMarkedPixels() {
@@ -200,71 +201,128 @@ class Algo {
         this.deps.attacks.setRemainingTroopsFromIndex(id, this.lastAttackIndex, this.lastRemaining);
         this.deps.players.land[id] += this.lastBorderLength;
         this.deps.players.updateAuthorXYMinMax(id);
-
-    function TakeBorderPixels() {
-        lastBorderTaken = true;
-        attacks.setRemainingTroopsFromIndex(lastAuthorID, lastAttackIndex, lastRemaining);
-        land[lastAuthorID] += lastBorderLength;
-        updateAuthorXYMinMax();
-        constructNewLandBorder()
+        this.constructNewLandBorder(id);
     }
 
     updateAuthorXYMinMax(id) {
         for (let xCoord, yCoord, bIndex = this.lastBorderLength - 1; 0 <= bIndex; bIndex--) {
-
-    function updateAuthorXYMinMax() {
-        for (var xCoord, yCoord, bIndex = lastBorderLength - 1; 0 <= bIndex; bIndex--) {
-            xCoord = divideFloor(lastBorderLand[bIndex], 4) % currentMapWidth;
-            yCoord = divideFloor(lastBorderLand[bIndex], 4 * currentMapWidth);
-            xMin[lastAuthorID] = getMin(xMin[lastAuthorID], xCoord);
-            yMin[lastAuthorID] = getMin(yMin[lastAuthorID], yCoord);
-            xMax[lastAuthorID] = getMax(xMax[lastAuthorID], xCoord);
-            yMax[lastAuthorID] = getMax(yMax[lastAuthorID], yCoord);
+            xCoord = utils.divideFloor(this.lastBorderLand[bIndex], 4) % this.deps.pixel.mapDims.x;
+            yCoord = utils.divideFloor(this.lastBorderLand[bIndex], 4 * this.deps.pixel.mapDims.x);
+            this.deps.players.xMin[id] = utils.getMin(this.deps.players.xMin[id], xCoord);
+            this.deps.players.yMin[id] = utils.getMin(this.deps.players.yMin[id], yCoord);
+            this.deps.players.xMax[id] = utils.getMax(this.deps.players.xMax[id], xCoord);
+            this.deps.players.yMax[id] = utils.getMax(this.deps.players.yMax[id], yCoord);
         }
     }
 
-    markPossiblePixels() {
-        this.markedPixels = [];
-        const borderPixels = this.deps.pixel.getBorderPixels();
-        for (let borderPixel of borderPixels) {
-            for (let side = 0; side <= 3; side++) {
-                let x = this.deps.pixel.getX(borderPixel),
-                    y = this.deps.pixel.getY(borderPixel);
-                switch (side) {
-                    case 0:
-                        x--;
-                        break;
-                    case 1:
-                        x++;
-                        break;
-                    case 2:
-                        y--;
-                        break;
-                    case 3:
-                        y++;
-                        break;
-                }
-                const pIndex = this.deps.pixel.getIndex(x, y);
-                if (this.deps.pixel.mapArray[pIndex] === 0 && !this.markedPixels.includes(pIndex)) {
-                    this.markedPixels.push(pIndex);
+    constructNewLandBorder(id) {
+        for (let bIndex = this.lastBorderLength - 1; 0 <= bIndex; bIndex--) {
+            this.deps.players.potentialBorderAdvances[id].push(this.lastBorderLand[bIndex]);
+            this.deps.players.landBorderPixels[id].push(this.lastBorderLand[bIndex]);
+            this.deps.pixel.changeToBorderPixel(this.lastBorderLand[bIndex], id);
+        }
+    }
+
+    updateTargetPixelArrays() {
+        this.deductTargetLand();
+        this.removeTargetTerrainBorderPixels(this.deps.players.landBorderPixels[this.lastTargetID]);
+        this.removeTargetTerrainBorderPixels(this.deps.players.waterBorderPixels[this.lastTargetID]);
+        this.removeTakenPixelsInPotentialAdvances(this.deps.players.potentialBorderAdvances[this.lastTargetID]);
+        this.constructNewBorderTerrain(this.deps.players.waterBorderPixels[this.lastTargetID]);
+        this.constructNewBorderTerrain(this.deps.players.mountainBorderPixels[this.lastTargetID]);
+        this.convertLastInnerPixelsToBorder();
+        this.updateTargetXYMinMax();
+    }
+
+
+    deductTargetLand() {
+        this.deps.players.land[this.lastTargetID] -= this.lastBorderLength;
+    }
+
+    removeTargetTerrainBorderPixels(terrainBorderPixels) {
+        for (let borderLength = terrainBorderPixels.length, bIndex = borderLength - 1; 0 <= bIndex; bIndex--) {
+            if (!this.deps.pixel.strongIsOwner(this.lastTargetID, terrainBorderPixels[bIndex]))  {
+                terrainBorderPixels[bIndex] = terrainBorderPixels[borderLength - 1];
+                terrainBorderPixels.pop();
+                borderLength--
+            }
+        }
+    }
+
+    removeTakenPixelsInPotentialAdvances(potentialAdvances) {
+        for (let borderLength = potentialAdvances.length, bIndex = borderLength - 1; 0 <= bIndex; bIndex--) {
+            if (!this.deps.pixel.strongIsOwner(this.lastTargetID, potentialAdvances[bIndex]) && this.deps.pixel.canOwn(potentialAdvances[bIndex])) {
+                potentialAdvances[bIndex] = potentialAdvances[borderLength - 1];
+                potentialAdvances.pop();
+                borderLength--;
+            }
+        }
+    }
+
+    constructNewBorderTerrain(terrainBorderPixels) {
+        let borderLength = terrainBorderPixels.length, 
+            pIndex;
+
+        for (bIndex = borderLength - 1,; 0 <= bIndex; bIndex--) {
+            for (let side = 3; 0 <= side; side--) {
+                pIndex = terrainBorderPixels[bIndex] + this.offset[side];
+                if (this.deps.pixel.canTake(pIndex, this.lastTargetID)) {
+                    this.deps.players.landBorderPixels[this.lastTargetID].push(terrainBorderPixels[bIndex]);
+                    terrainBorderPixels[bIndex] = terrainBorderPixels[borderLength - 1];
+                    terrainBorderPixels.pop();
+                    borderLength--;
+                    break;
                 }
             }
         }
     }
-  
-    returnRemaining() {
-        this.deps.interest.troops += this.deps.speed.remaining;
-        this.deps.gameStatistics.expenses[1] -= this.deps.speed.remaining;
-        this.deps.speed.removeEntry();
-    }
-  
-    takeBorderPixels() {
-        this.deps.speed.remaining -= this.markedPixels.length * this.neutCost;
-        for (let pIndex of this.markedPixels) {
-            this.deps.pixel.mapArray[this.deps.pixel.getIndex(this.deps.pixel.getX(pIndex), this.deps.pixel.getY(pIndex))] = 2;
+
+    convertLastInnerPixelsToBorder() {
+        let pIndex;
+        for (let bIndex = this.lastBorderLength - 1; 0 <= bIndex; bIndex--) {
+            for (let side = 3; 0 <= side; side--) {
+                pIndex = this.lastBorderLand[bIndex] + this.offset[side];
+                if (this.deps.pixel.isOwner(this.lastTargetID, pIndex) && this.deps.pixel.isInnerPixel(pIndex)) {
+                    this.deps.players.landBorderPixels[this.lastTargetID].push(pIndex);
+                    this.deps.pixel.changeToBorderPixel(pIndex, this.lastTargetID);
+                }
+            }
         }
-        this.deps.pixel.updatePixels();
     }
+
+    updateTargetXYMinMax() {
+        let cIndex;
+        loop: for (; this.deps.players.yMin[this.lastTargetID] < this.deps.players.yMax[this.lastTargetID]; this.deps.players.yMin[this.lastTargetID]++) {
+            for (cIndex = this.deps.players.xMax[this.lastTargetID]; cIndex >= this.deps.players.xMin[this.lastTargetID]; cIndex--) {
+                if (this.deps.pixel.strongIsOwner(this.lastTargetID, 4 * (this.deps.players.yMin[this.lastTargetID] * this.deps.pixel.mapDims.x + cIndex))) {
+                    break loop;
+                }
+            }
+        }
+        loop: for (; this.deps.players.yMin[this.lastTargetID] < this.deps.players.yMax[this.lastTargetID]; this.deps.players.yMax[this.lastTargetID]--) {
+            for (cIndex = this.deps.players.xMax[this.lastTargetID]; cIndex >= this.deps.players.xMin[this.lastTargetID]; cIndex--) {
+                if (this.deps.pixel.strongIsOwner(this.lastTargetID, 4 * (this.deps.players.yMax[this.lastTargetID] * this.deps.pixel.mapDims.x + cIndex))) {
+                    break loop;
+                }
+            }
+        }
+        loop: for (; this.deps.players.xMin[this.lastTargetID] < this.deps.players.xMax[this.lastTargetID]; this.deps.players.xMin[this.lastTargetID]++) {
+            for (cIndex = this.deps.players.yMax[this.lastTargetID]; cIndex >= this.deps.players.yMin[this.lastTargetID]; cIndex--) {
+                if (this.deps.pixel.strongIsOwner(this.lastTargetID, 4 * (cIndex * this.deps.pixel.mapDims.x + this.deps.players.xMin[this.lastTargetID]))) {
+                    break loop;
+                }
+            }
+        }
+        loop: for (; this.deps.players.xMin[this.lastTargetID] < this.deps.players.xMax[this.lastTargetID]; this.deps.players.xMax[this.lastTargetID]--) {
+            for (cIndex = this.deps.players.yMax[this.lastTargetID]; cIndex >= this.deps.players.yMin[this.lastTargetID]; cIndex--) {
+                if (this.deps.pixel.strongIsOwner(this.lastTargetID, 4 * (cIndex * this.deps.pixel.mapDims.x + this.deps.players.xMax[this.lastTargetID]))) {
+                    break loop;
+                }
+            }
+        }
+    }
+
+        
 }
 
 module.exports = Algo;

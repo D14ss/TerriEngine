@@ -71,6 +71,9 @@ class Pixel {
     canOwn(pIndex) {
 
     }
+
+    changeToBorderPixel(pIndex) {
+    }
 }
 
 module.exports = Pixel;
